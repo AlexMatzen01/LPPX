@@ -1,0 +1,7 @@
+# LPPX workspace root
+[workspace]
+resolver = "2"
+members = ["common", "LPPX2D", "LPPX3D"]
+
+[profile.release]
+opt-level = 3

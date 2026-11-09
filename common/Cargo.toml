@@ -1,0 +1,16 @@
+[package]
+name = "lppo-common"
+version = "1.0.0"
+edition = "2021"
+description = "Shared functionality for LPPX extensions (math, windowing, input, timing)."
+
+[lib]
+name = "lppo_common"
+path = "src/lib.rs"
+crate-type = ["rlib", "cdylib"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+
+[features]
+default = []

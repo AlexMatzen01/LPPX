@@ -1,0 +1,40 @@
+{
+  "functions": [
+    {
+      "name": "x2d_window_create",
+      "params": ["Str", "Int64", "Int64"],
+      "return_type": "Int64",
+      "symbol": "x2d_window_create"
+    },
+    {
+      "name": "x2d_canvas_clear",
+      "params": ["Int64", "Int64", "Int64", "Int64"],
+      "return_type": "Int64",
+      "symbol": "x2d_canvas_clear"
+    },
+    {
+      "name": "x2d_draw_rectangle",
+      "params": ["Int64", "Int64", "Int64", "Int64", "Int64", "Int64", "Int64"],
+      "return_type": "Int64",
+      "symbol": "x2d_draw_rectangle"
+    },
+    {
+      "name": "x2d_draw_circle",
+      "params": ["Int64", "Int64", "Int64"],
+      "return_type": "Int64",
+      "symbol": "x2d_draw_circle"
+    },
+    {
+      "name": "x2d_begin_frame",
+      "params": ["Int64"],
+      "return_type": "Int64",
+      "symbol": "x2d_begin_frame"
+    },
+    {
+      "name": "x2d_end_frame",
+      "params": ["Int64"],
+      "return_type": "Int64",
+      "symbol": "x2d_end_frame"
+    }
+  ]
+}

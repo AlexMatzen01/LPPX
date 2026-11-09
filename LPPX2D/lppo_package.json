@@ -1,0 +1,15 @@
+{
+  "name": "LPPX2D",
+  "version": "1.0.0",
+  "description": "2D graphics framework for LPPO",
+  "lppo_version": ">=5.0.0",
+  "license": "MIT",
+  "repository": "https://github.com/AlexMatzen01/LPPX",
+  "dependencies": {},
+  "build": {
+    "system": "cargo",
+    "manifest": "Cargo.toml",
+    "features": [],
+    "release": false
+  }
+}

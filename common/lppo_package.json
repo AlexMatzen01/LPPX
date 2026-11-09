@@ -1,0 +1,15 @@
+{
+  "name": "LPPXCommon",
+  "version": "1.0.0",
+  "description": "Shared functionality for LPPX extensions (math, windowing, input, timing).",
+  "lppo_version": ">=5.0.0",
+  "license": "MIT",
+  "repository": "https://github.com/AlexMatzen01/LPPX",
+  "dependencies": {},
+  "build": {
+    "system": "cargo",
+    "manifest": "Cargo.toml",
+    "features": [],
+    "release": true
+  }
+}
