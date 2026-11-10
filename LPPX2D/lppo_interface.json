@@ -14,13 +14,13 @@
     },
     {
       "name": "x2d_draw_rectangle",
-      "params": ["Int64", "Int64", "Int64", "Int64", "Int64", "Int64", "Int64"],
+      "params": ["Int64", "Int64", "Int64", "Int64", "Int64", "Int64", "Int64", "Int64"],
       "return_type": "Int64",
       "symbol": "x2d_draw_rectangle"
     },
     {
       "name": "x2d_draw_circle",
-      "params": ["Int64", "Int64", "Int64"],
+      "params": ["Int64", "Int64", "Int64", "Int64", "Int64", "Int64", "Int64", "Int64"],
       "return_type": "Int64",
       "symbol": "x2d_draw_circle"
     },
