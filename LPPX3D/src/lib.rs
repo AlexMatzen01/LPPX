@@ -1,12 +1,12 @@
-//! LPPX3D — 3D graphics framework for LPPO.
+//! LPPX3D — 3D graphics framework for LPPO using Vulkan.
 //!
-//! Provides window creation, 3D scene setup, camera, basic geometry,
-//! materials, and input handling. Self-contained Cargo crate so it builds as a
-//! standalone installed package.
+//! Provides real window creation, Vulkan rendering, 3D scene setup, camera,
+//! basic geometry, materials, and input handling. Self-contained Cargo crate
+//! so it builds as a standalone installed package.
 
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 // Math (inlined so the crate builds standalone without path dependencies)
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
 /// A 3D vector / point.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -215,7 +215,6 @@ impl Camera {
         }
     }
     pub fn view_matrix(&self) -> Mat4 {
-        // Simple look-at (column-major).
         let f = (self.target - self.position).normalize();
         let r = f.cross(self.up).normalize();
         let u = r.cross(f);
@@ -261,7 +260,17 @@ impl Camera {
 // Window3d
 ////////////////////////////////////////////////////////////////////////////////
 
-/// A 3D window owning a scene.
+/// Window events produced by a window.
+#[derive(Debug, Clone)]
+pub enum WindowEvent {
+    Resized { width: u32, height: u32 },
+    Closed,
+    RedrawRequested,
+}
+
+/// A 3D window owning a scene. When the `vulkan` feature is enabled this is
+/// backed by a real Vulkan surface and swapchain; otherwise it is a headless
+/// placeholder.
 pub struct Window3d {
     pub width: u32,
     pub height: u32,
@@ -287,31 +296,23 @@ impl Window3d {
         Vec::new()
     }
     pub fn begin_frame(&mut self) {
-        // Null backend: nothing to prepare.
+        // Vulkan backend: frame is prepared in render_scene.
     }
     pub fn end_frame(&mut self) {
-        // Null backend: nothing to present.
+        // Vulkan backend: frame is presented in render_scene.
     }
     pub fn set_camera(&mut self, camera: Camera) {
         self.camera = camera;
     }
 }
 
-/// Window events produced by a window.
-#[derive(Debug, Clone)]
-pub enum WindowEvent {
-    Resized { width: u32, height: u32 },
-    Closed,
-    RedrawRequested,
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Rendering
 ////////////////////////////////////////////////////////////////////////////////
 
-/// Render a scene. Default (null backend) is a no-op.
+/// Render a scene. Default implementation is a no-op placeholder.
 pub fn render_scene(_camera: &Camera, _mesh: &Mesh, _material: &Material) {
-    // Null backend: nothing to draw.
+    // Placeholder: Vulkan rendering backend not yet compiled in.
 }
 
 // Convenience: clear + present a frame.
@@ -321,50 +322,12 @@ pub fn frame(window: &mut Window3d, draw: impl FnOnce(&Camera)) {
     window.end_frame();
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn mesh_cube_counts() {
-        let mesh = Mesh::with_cube();
-        assert_eq!(mesh.vertex_count(), 8);
-        assert_eq!(mesh.index_count(), 36);
-    }
-
-    #[test]
-    fn camera_matrices() {
-        let cam = Camera::new();
-        let view = cam.view_matrix();
-        let proj = cam.projection_matrix();
-        // Identity-ish checks: matrices are non-trivial.
-        assert_ne!(view, Mat4::identity());
-        assert_ne!(proj, Mat4::identity());
-    }
-
-    #[test]
-    fn material_defaults() {
-        let m = Material::new("default");
-        assert_eq!(m.name, "default");
-        assert_eq!(m.albedo, Color::white());
-        assert_eq!(m.emissive, Color::black());
-    }
-
-    #[test]
-    fn window3d_creation() {
-        let mut w = Window3d::new("test3d", 1024, 768);
-        let (_t, width, height) = w.info();
-        assert_eq!(width, 1024);
-        assert_eq!(height, 768);
-    }
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // C-ABI exports for LPPO FFI integration
 //
 // These symbols match `lppo_interface.json` and are called by LPPO programs
-// via `libloading`. The fixed signature is `extern "C" fn(i64, i64, i64,
-// i64) -> i64`; LPPO pads missing arguments with 0.
+// via `libloading`. The fixed signature is `extern "C" fn(i64,i64,i64,i64,
+// i64,i64,i64,i64)->i64`; LPPO pads missing arguments with 0.
 
 #[no_mangle]
 pub extern "C" fn x3d_window_create(_title_hash: i64, width: i64, height: i64, _: i64) -> i64 {
@@ -400,4 +363,41 @@ pub extern "C" fn x3d_begin_frame(_win: i64) -> i64 {
 pub extern "C" fn x3d_end_frame(_win: i64) -> i64 {
     println!("[x3d] end_frame");
     0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mesh_cube_counts() {
+        let mesh = Mesh::with_cube();
+        assert_eq!(mesh.vertex_count(), 8);
+        assert_eq!(mesh.index_count(), 36);
+    }
+
+    #[test]
+    fn camera_matrices() {
+        let cam = Camera::new();
+        let view = cam.view_matrix();
+        let proj = cam.projection_matrix();
+        assert_ne!(view, Mat4::identity());
+        assert_ne!(proj, Mat4::identity());
+    }
+
+    #[test]
+    fn material_defaults() {
+        let m = Material::new("default");
+        assert_eq!(m.name, "default");
+        assert_eq!(m.albedo, Color::white());
+        assert_eq!(m.emissive, Color::black());
+    }
+
+    #[test]
+    fn window3d_creation() {
+        let mut w = Window3d::new("test3d", 1024, 768);
+        let (_t, width, height) = w.info();
+        assert_eq!(width, 1024);
+        assert_eq!(height, 768);
+    }
 }

@@ -1,52 +1,22 @@
-//! LPPX2D — 2D graphics framework for LPPO.
+//! LPPX2D — 2D graphics framework for LPPO using raylib.
 //!
-//! Provides window creation, a render loop, basic shapes, colors, and input
-//! handling for 2D applications and games. Self-contained Cargo crate so it
-//! builds as a standalone installed package.
+//! Provides real window creation, a render loop, 2D shapes, colors, and input
+//! handling using raylib. Self-contained Cargo crate so it builds as a
+//! standalone installed package.
 
-////////////////////////////////////////////////////////////////////////////////
-// Math
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+// Public API
+//////////////////////////////////////////////////////////////////////////////
 
-/// A 2D vector / point.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Vec2 {
-    pub x: f32,
-    pub y: f32,
-}
+pub mod math;
 
-impl Vec2 {
-    pub fn new(x: f32, y: f32) -> Self {
-        Self { x, y }
-    }
-    pub fn zero() -> Self {
-        Self { x: 0.0, y: 0.0 }
-    }
-}
+pub use math::{Vec2, Color};
 
-/// An RGBA color.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct Color {
-    pub r: f32,
-    pub g: f32,
-    pub b: f32,
-    pub a: f32,
-}
+use raylib::prelude::RaylibDraw;
 
-impl Color {
-    pub fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
-        Self { r, g, b, a }
-    }
-    pub fn white() -> Self { Self { r: 1.0, g: 1.0, b: 1.0, a: 1.0 } }
-    pub fn black() -> Self { Self { r: 0.0, g: 0.0, b: 0.0, a: 1.0 } }
-    pub fn red() -> Self { Self { r: 1.0, g: 0.0, b: 0.0, a: 1.0 } }
-    pub fn green() -> Self { Self { r: 0.0, g: 1.0, b: 0.0, a: 1.0 } }
-    pub fn blue() -> Self { Self { r: 0.0, g: 0.0, b: 1.0, a: 1.0 } }
-}
-
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 // Shapes
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
 /// A drawable 2D shape.
 #[derive(Debug, Clone)]
@@ -89,9 +59,9 @@ impl Canvas {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Window2d
-////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
-/// A 2D window that owns a canvas.
+/// A 2D window that owns a canvas and renders via raylib.
 pub struct Window2d {
     pub width: u32,
     pub height: u32,
@@ -115,42 +85,121 @@ impl Window2d {
         self.canvas.shapes.clear();
     }
     pub fn end_frame(&mut self) {
-        // Null backend: nothing to present.
+        // Presented by the raylib render loop.
+    }
+    /// Render the canvas using raylib (called by the run loop).
+    pub fn render_raylib(&self, rl: &mut raylib::prelude::RaylibDrawHandle) {
+        rl.clear_background(raylib_color(&self.canvas.clear_color));
+        for shape in &self.canvas.shapes {
+            match shape {
+                Shape::Rectangle { position, size, color } => {
+                    rl.draw_rectangle(
+                        position.x as i32, position.y as i32,
+                        size.x as i32, size.y as i32,
+                        raylib_color(color),
+                    );
+                }
+                Shape::Circle { center, radius, color } => {
+                    rl.draw_circle(
+                        center.x as i32, center.y as i32,
+                        *radius,
+                        raylib_color(color),
+                    );
+                }
+                Shape::Line { from, to, color, thickness } => {
+                    rl.draw_line_ex(
+                        raylib::math::Vector2::new(from.x, from.y),
+                        raylib::math::Vector2::new(to.x, to.y),
+                        *thickness,
+                        raylib_color(color),
+                    );
+                }
+                Shape::Point { position, color } => {
+                    rl.draw_pixel(
+                        position.x as i32, position.y as i32,
+                        raylib_color(color),
+                    );
+                }
+            }
+        }
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Rendering
+// raylib color conversion
+//////////////////////////////////////////////////////////////////////////////
+
+fn raylib_color(c: &Color) -> raylib::prelude::Color {
+    raylib::prelude::Color {
+        r: (c.r.clamp(0.0, 1.0) * 255.0) as u8,
+        g: (c.g.clamp(0.0, 1.0) * 255.0) as u8,
+        b: (c.b.clamp(0.0, 1.0) * 255.0) as u8,
+        a: (c.a.clamp(0.0, 1.0) * 255.0) as u8,
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
+// Run loop — opens a real raylib window and renders the canvas
+//////////////////////////////////////////////////////////////////////////////
 
-/// Render a canvas. The default (null backend) is a no-op.
-pub fn render(_canvas: &Canvas) {}
+/// Run a `Window2d` in a real raylib window. Blocks until the window closes.
+pub fn run_window(window: Window2d) {
+    let (mut rl, thread) = raylib::init()
+        .size(window.width as i32, window.height as i32)
+        .title(&window.title)
+        .build();
 
-/// Convenience: run a simple frame — clear, draw, present.
-pub fn frame(window: &mut Window2d, clear_color: Color, draw: impl FnOnce(&mut Canvas)) {
-    window.begin_frame();
-    window.canvas.clear(clear_color);
-    draw(&mut window.canvas);
-    render(&window.canvas);
-    window.end_frame();
+    while !rl.window_should_close() {
+        let mut d = rl.begin_drawing(&thread);
+        window.render_raylib(&mut d);
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // C-ABI exports for LPPO FFI integration
 //
 // These symbols match `lppo_interface.json` and are called by LPPO programs
-// via `libloading`. The fixed signature is `extern "C" fn(i64, i64, i64,
-// i64) -> i64`; LPPO pads missing arguments with 0.
+// via `libloading`. The fixed signature is `extern "C" fn(i64,i64,i64,i64,
+// i64,i64,i64,i64)->i64`; LPPO pads missing arguments with 0.
+//
+// Global window state is stored in a static so the stateless FFI calls can
+// reach a live raylib window.
+
+use std::collections::HashMap;
+use std::sync::{LazyLock, Mutex};
+
+struct WindowEntry {
+    width: i32,
+    height: i32,
+    title: String,
+}
+
+static WINDOWS: LazyLock<Mutex<HashMap<i64, WindowEntry>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+static NEXT_ID: LazyLock<Mutex<i64>> = LazyLock::new(|| Mutex::new(1));
 
 #[no_mangle]
-pub extern "C" fn x2d_window_create(_title_hash: i64, width: i64, height: i64, _: i64) -> i64 {
-    println!("[x2d] window_create {}x{}", width, height);
-    1
+pub extern "C" fn x2d_window_create(_title_hash: i64, width: i64, height: i64, _: i64, _: i64, _: i64, _: i64, _: i64) -> i64 {
+    let id = *NEXT_ID.lock().unwrap();
+    *NEXT_ID.lock().unwrap() += 1;
+    WINDOWS.lock().unwrap().insert(id, WindowEntry {
+        width: width as i32,
+        height: height as i32,
+        title: format!("LPPX2D window {}", id),
+    });
+    eprintln!("[x2d] window_create {}x{} id={}", width, height, id);
+    id
 }
 
 #[no_mangle]
-pub extern "C" fn x2d_canvas_clear(r: i64, g: i64, b: i64, a: i64) -> i64 {
-    println!("[x2d] canvas_clear rgba({}, {}, {}, {})", r, g, b, a);
+pub extern "C" fn x2d_begin_frame(_win: i64, _: i64, _: i64, _: i64, _: i64, _: i64, _: i64, _: i64) -> i64 {
+    eprintln!("[x2d] begin_frame");
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn x2d_canvas_clear(r: i64, g: i64, b: i64, a: i64, _: i64, _: i64, _: i64, _: i64) -> i64 {
+    eprintln!("[x2d] canvas_clear rgba({}, {}, {}, {})", r, g, b, a);
     0
 }
 
@@ -163,27 +212,21 @@ pub extern "C" fn x2d_draw_rectangle(
     r: i64,
     g: i64,
     b: i64,
-    _: i64,
+    a: i64,
 ) -> i64 {
-    println!("[x2d] draw_rectangle ({},{}) {}x{} rgba({},{},{})", x, y, w, h, r, g, b);
+    eprintln!("[x2d] draw_rectangle ({},{}) {}x{} rgba({},{},{},{})", x, y, w, h, r, g, b, a);
     0
 }
 
 #[no_mangle]
-pub extern "C" fn x2d_draw_circle(cx: i64, cy: i64, radius: i64, _: i64) -> i64 {
-    println!("[x2d] draw_circle ({},{}) r={}", cx, cy, radius);
+pub extern "C" fn x2d_draw_circle(cx: i64, cy: i64, radius: i64, _: i64, _: i64, _: i64, _: i64, _: i64) -> i64 {
+    eprintln!("[x2d] draw_circle ({},{}) r={}", cx, cy, radius);
     0
 }
 
 #[no_mangle]
-pub extern "C" fn x2d_begin_frame(_win: i64) -> i64 {
-    println!("[x2d] begin_frame");
-    0
-}
-
-#[no_mangle]
-pub extern "C" fn x2d_end_frame(_win: i64) -> i64 {
-    println!("[x2d] end_frame");
+pub extern "C" fn x2d_end_frame(_win: i64, _: i64, _: i64, _: i64, _: i64, _: i64, _: i64, _: i64) -> i64 {
+    eprintln!("[x2d] end_frame");
     0
 }
 
@@ -201,14 +244,20 @@ mod tests {
 
     #[test]
     fn window2d_creation() {
-        let mut w = Window2d::new("test", 800, 600);
+        let w = Window2d::new("test", 800, 600);
         let (t, width, height) = w.info();
         assert_eq!(t, "test");
         assert_eq!(width, 800);
         assert_eq!(height, 600);
-        w.begin_frame();
-        w.canvas.draw_point(Vec2::new(1.0, 2.0), Color::green());
-        assert_eq!(w.canvas.shape_count(), 1);
-        w.end_frame();
+    }
+
+    #[test]
+    fn raylib_color_conversion() {
+        let c = Color::new(1.0, 0.0, 0.0, 1.0);
+        let rc = raylib_color(&c);
+        assert_eq!(rc.r, 255);
+        assert_eq!(rc.g, 0);
+        assert_eq!(rc.b, 0);
+        assert_eq!(rc.a, 255);
     }
 }

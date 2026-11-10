@@ -5,3 +5,6 @@ members = ["common", "LPPX2D", "LPPX3D"]
 
 [profile.release]
 opt-level = 3
+
+[patch.crates-io]
+raylib-sys = { path = "/tmp/raylib-sys-patched" }

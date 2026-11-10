@@ -1,0 +1,10 @@
+[project]
+name = "shader_demo"
+version = "0.1.0"
+
+[build]
+entry = "src/main.lppo"
+output = "target/shader_demo"
+strip = false
+obfuscate = false
+link_args = []

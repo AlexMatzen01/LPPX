@@ -1,0 +1,7 @@
+uniform color u_fill = rgba(1, 0, 0, 1);
+
+shader rect_demo {
+    clear rgba(0, 0, 0, 1);
+    rect 100, 100, 200, 150 fill u_fill;
+    circle 300, 200, 50 fill rgba(0, 0, 1, 1);
+}

@@ -1,0 +1,5 @@
+use LPPX2D "shaders/demo.x2d";
+
+pub proc main() -> Void {
+    call x2d_run("rect_demo");
+}
