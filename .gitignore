@@ -18,3 +18,27 @@ Cargo.lock
 
 # Rustc internal compiler error stack dump files
 rustc-ice-*.txt
+
+# Shared library artifacts (cdylib builds)
+*.so
+*.dylib
+*.dll
+
+# LPPX2D/LPPX3D test output images
+*.ppm
+*.png
+
+# IDE and editor artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Temporary build artifacts
+*.o
+*.a
